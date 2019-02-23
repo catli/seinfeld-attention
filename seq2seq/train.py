@@ -14,6 +14,8 @@ import random
 import math
 import os
 from tqdm import tqdm
+# [TODO] update the load logic
+# for fasttext
 from load import loadPrepareData
 from load import SOS_token, EOS_token, PAD_token
 from model import EncoderRNN, LuongAttnDecoderRNN
