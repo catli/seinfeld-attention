@@ -53,7 +53,7 @@ class fastDict():
     def createWordDict(self, all_words):
         pickle_writer = open(self.pickle_path, 'w')
         word_dict = {}
-        for word in words:
+        for word in all_words:
             word_dict[word] = self.fast.get_word_vector(word)
         pk.dump(word, pickle_writer)
 
