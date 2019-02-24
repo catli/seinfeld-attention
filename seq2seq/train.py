@@ -20,6 +20,7 @@ from load import loadPrepareData
 from load import SOS_token, EOS_token, PAD_token
 from model import EncoderRNN, LuongAttnDecoderRNN
 from config import MAX_LENGTH, teacher_forcing_ratio, save_dir
+import pdb
 
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
@@ -153,27 +154,29 @@ def train(input_variable, lengths, target_variable, mask, max_target_len, encode
 def trainIters(corpus, reverse, n_iteration, learning_rate, batch_size, n_layers, hidden_size,
                 print_every, save_every, dropout, loadFilename=None, attn_model='dot', decoder_learning_ratio=5.0):
 
+    # [TODO] load prepare data
     voc, pairs = loadPrepareData(corpus)
 
     # training data
-    corpus_name = os.path.split(corpus)[-1].split('.')[0]
-    training_batches = None
-    try:
-        training_batches = torch.load(os.path.join(save_dir, 'training_data', corpus_name,
-                                                   '{}_{}_{}.tar'.format(n_iteration, \
-                                                                         filename(reverse, 'training_batches'), \
-                                                                         batch_size)))
-    except FileNotFoundError:
-        print('Training pairs not found, generating ...')
-        training_batches = [batch2TrainData(voc, [random.choice(pairs) for _ in range(batch_size)], reverse)
-                          for _ in range(n_iteration)]
-        torch.save(training_batches, os.path.join(save_dir, 'training_data', corpus_name,
-                                                  '{}_{}_{}.tar'.format(n_iteration, \
-                                                                        filename(reverse, 'training_batches'), \
-                                                                        batch_size)))
+    # corpus_name = os.path.split(corpus)[-1].split('.')[0]
+    # training_batches = None
+    # try:
+    #     training_batches = torch.load(os.path.join(save_dir, 'training_data', corpus_name,
+    #                                                '{}_{}_{}.tar'.format(n_iteration, \
+    #                                                                      filename(reverse, 'training_batches'), \
+    #                                                                      batch_size)))
+    # except FileNotFoundError:
+    #     print('Training pairs not found, generating ...')
+    #     training_batches = [batch2TrainData(voc, [random.choice(pairs) for _ in range(batch_size)], reverse)
+    #                       for _ in range(n_iteration)]
+    #     torch.save(training_batches, os.path.join(save_dir, 'training_data', corpus_name,
+    #                                               '{}_{}_{}.tar'.format(n_iteration, \
+    #                                                                     filename(reverse, 'training_batches'), \
+    #                                                                     batch_size)))
     # model
     checkpoint = None
     print('Building encoder and decoder ...')
+    
     embedding = nn.Embedding(voc.n_words, hidden_size)
     encoder = EncoderRNN(voc.n_words, hidden_size, embedding, n_layers, dropout)
     attn_model = 'dot'
