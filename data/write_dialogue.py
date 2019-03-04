@@ -92,7 +92,7 @@ def write_all_lines(uri, site):
 
 
 def write_all_episodes():
-    link_reader = open('seinfield_links.csv','r')
+    link_reader = open('episodes/seinfield_links.csv','r')
     site = 'http://www.seinfeldscripts.com/'
     for uri in link_reader:
         print(uri)

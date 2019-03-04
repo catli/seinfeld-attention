@@ -4,6 +4,15 @@
     and train data.
 
     This will also be used to store the
+    Steps to clean scripts (codify):  
+        1) copy direct from website (space-delimited text)  
+        [TODO: add the below logic to process_data.py]
+        2) remove actions in brackets  
+        3) change words not in fasttext dictionary like "heeeey" to closest approximation like "heeey", and convert made-up conjuction like "overdie" to "over-die"  
+        4) concate the speaker into one string, without space  
+        5) create a space between punctuation and words [.,?;!]  
+        6) delete apostrophes for shorten words like "it's"
+
 '''
 import fastText as ft
 import pickle as pk
@@ -23,19 +32,13 @@ def createLinePairs(corpus):
             ["Hey", ",", "theres", "the", "old","man","!"]
     '''
     print("Reading lines...")
-    # [TODO] create line pairs for multiple episodes
     # combine every two lines into pairs of vectors
     with open(corpus) as f:
         content = f.readlines()
         print('CONTENT')
         print(content)
     # strip \n and \t, and skip the speaker
-    lines = []
-    for x in content:
-        if 'scene:' in x:
-            lines.append([])
-        else:
-            lines.append(x.strip().lower().split('\t')[1:])
+    lines = convert_line_to_array(content)
 
     pairs = []
     for i,x in enumerate(lines[:-1]):
@@ -43,6 +46,22 @@ def createLinePairs(corpus):
             pairs.append([lines[i], lines[i+1]])
     return pairs
 
+
+def convert_line_to_array(content):
+    '''
+        convert each line in scene to an array of text
+        formating when not relevant
+    '''
+    lines = []
+    for x in content:
+        line = x.strip()
+        if len(line)>0: #skip empty lines
+            # get ride of 
+            if 'scene:' in x: # if line is scene, store empty
+                lines.append([])
+            else:
+                lines.append(line.lower().split(' ')[1:])
+    return lines
 
 
 def createWordVector(word_array, word_dict):
@@ -157,7 +176,8 @@ if __name__ == '__main__':
     method = 'import'
     fast = fastDict(read_filename, method)
     word_dict = fast.processDict()
-    test_filename = '~/Documents/seinfeld/episodes/episode_TheSeinfeldChronicles'
+    # [TODO] clean-up do not need to call these functions in main
+    test_filename = '~/Documents/seinfeld/episodes/episode_TheSeinfeldChronicles_copy'
     pairs = createLinePairs(os.path.expanduser(test_filename))
     pdb.set_trace()
     # for pair in pairs: input, output = line2TrainVector(pair, word_dict)
