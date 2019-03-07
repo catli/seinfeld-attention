@@ -4,7 +4,7 @@ You know why we're here? To learn attention, that's right attention model. And n
 
 
 #### [WIP]
-`process_data.py`: cleans the 
+`process_data.py`: cleans and converts dialogue lines into embedding pairs
 
 
 #### What is Attention?
