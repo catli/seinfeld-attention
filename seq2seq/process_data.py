@@ -6,7 +6,6 @@
     This will also be used to store the
     Steps to clean scripts (codify):  
         1) copy direct from website (space-delimited text)  
-        [TODO: add the below logic to process_data.py]
         2) remove actions in brackets  
         3) change words not in fasttext dictionary like "heeeey" to closest approximation like "heeey", and convert made-up conjuction like "overdie" to "over-die"  
         4) concate the speaker into one string, without space  
@@ -38,16 +37,19 @@ def createLinePairs(corpus):
         print('CONTENT')
         print(content)
     # strip \n and \t, and skip the speaker
-    lines = convert_line_to_array(content)
+    lines = convert_lines_to_arrays(content)
 
     pairs = []
     for i,x in enumerate(lines[:-1]):
-        if lines[i] and lines[i+1]:
+        # create pairs of lines to feed as input and output
+        # for model, empty lines represent new scene
+        # so any pair wiht an empty line is discarded
+        if lines[i] and lines[i+1]: #if neither lines are empty
             pairs.append([lines[i], lines[i+1]])
     return pairs
 
 
-def convert_line_to_array(content):
+def convert_lines_to_arrays(content):
     '''
         convert each line in scene to an array of text
         formating when not relevant
@@ -56,51 +58,53 @@ def convert_line_to_array(content):
     for x in content:
         line = x.strip()
         if len(line)>0: #skip empty lines
-            # get ride of 
-            if 'scene:' in x: # if line is scene, store empty
+            if 'scene:' in x: #  store empty arrays for new scene
                 lines.append([])
             else:
-                lines.append(line.lower().split(' ')[1:])
+                line_arr = format_line(line)
+                if line_arr: # if line not empty
+                    lines.append(line_arr)
     return lines
 
-
-def createWordVector(word_array, word_dict):
-    vect = []
-    for word in word_array:
-        # a hyphenated word may be tricky
-        # if cannot find, then may need to split up
-        # as 2 word
-        if '-' in word and word not in word_dict:
-            vect.append(createHypenEmbed(word))
-            continue
-        # semi-colons not in fasttext
-        if word == ';': word = '.'
-        if word == '':
-            continue
-        if word in word_dict:
-            vect.append(word_dict[word])
-        else:
-            print('NOT IN DICT')
-            print(word)
-            print(word_array)
-    return vect
-
-def createHypenEmbed(word):
+def format_line(line):
     '''
-        Handle outlier language with hyphen
+        format the line before storing as an array
     '''
-    word_whole = re.sub('-', '', word)
-    if word_whole in word_dict:
-        return word_dict[word_whole]
-    else:
-        # [TODO] should the hyphenated word be
-        # split into two words or kept as an
-        # average embedding?
-        subwords = word.split('-')
-        word_vect = word_dict[subwords[0]]
-        for w in subwords[1:]:
-            word_vect+=word_dict[w]
-        return word_vect
+    line = line.lower() # set line to lower case
+    line_arr = []
+    open_brack = []
+    is_dialogue = False
+    word = ''
+    for s in line:
+        if s=="'": # don't store apostrophe, so it's stored as its
+            continue
+        if s==':': # after first speaker identified
+            is_dialogue = True
+            continue
+        if s=='[': #if open_brack is not null, string is not dialogue
+            open_brack.append(s)
+            continue
+        if s==']': #remove open brack, if closed one found
+            open_brack.pop()
+            continue
+        if is_dialogue and not open_brack: 
+            # if not inside bracket and some word to store
+            if s == ' ': # if space
+                if len(word)>0:
+                    line_arr.append(word)
+                    word = '' # reset word to blank
+            elif re.match("[.,?;!\"]", s):
+                # start new word if character
+                if len(word)>0:
+                    line_arr.append(word)
+                    line_arr.append(s)
+                    word = ''
+            elif re.match("[A-Za-z\-]", s):
+                # store if alpha character
+                word = word+s
+    return line_arr
+
+
 
 def line2TrainVector(pairs, word_dict):
     # [TODO] convert each line into vectors
@@ -120,6 +124,79 @@ def line2TrainVector(pairs, word_dict):
     target_v = createWordVector(pairs[1], word_dict)
     return input_v, target_v
 
+
+def createWordVector(word_array, word_dict):
+    vect = []
+    for word in word_array:
+        # a hyphenated word may be tricky
+        # if cannot find, then may need to split up
+        # as 2 word
+        if '-' in word and word not in word_dict:
+            vect.extend(createHypenEmbed(word))
+            continue
+        # semi-colons not in fasttext
+        if word == ';': word = '.'
+        if word == '':
+            continue
+        if word in word_dict:
+            vect.append(word_dict[word])
+        else:
+            print('NOT IN DICT')
+            print(word)
+            editted_word = editWord(word, word_dict)
+            vect.append(editted_word)
+            print(editted_word)
+            print(word_array)
+    return vect
+
+
+def editWord(weird_word, word_dict):
+    # edit weird string, remove extra letters
+    # until word in dict
+    last_s = ''
+    weird_stack = []
+    for i, s in enumerate(weird_word):
+        ## create ([index, letter, num]) for each different letter
+        if s!=last_s:
+            weird_stack.append([i, s, 1])
+        else:
+            weird_stack[-1][2]+=1 # add 1 to the weird word
+        last_s = s
+    # sort the stack to find most common group of letters and index
+    sorted_stack =  sorted(weird_stack, key = lambda x: x[2])
+    most_common = sorted_stack[-1]
+    # remove most common letter in the weird word
+    # i.e. in heeeeey, remove e
+    common_idx = most_common[0]+most_common[2]
+    weird_word = weird_word[:(common_idx-1)]+weird_word[common_idx:]
+    if weird_word in word_dict:
+        return weird_word
+    else:
+        weird_word = editWord(weird_word, word_dict)
+    return weird_word
+
+
+
+
+
+
+def createHypenEmbed(word):
+    '''
+        Handle outlier language with hyphen
+    '''
+    word_whole = re.sub('-', '', word)
+    if word_whole in word_dict:
+        return [word_dict[word_whole]]
+    else:
+        # [TODO] should the hyphenated word be
+        # split into two words or kept as an
+        # average embedding?
+        # currently adding the two word into one vect
+        subwords = word.split('-')
+        word_vect = [word_dict[subwords[0]]]
+        for w in subwords[1:]:
+            word_vect.append(word_dict[w])
+        return word_vect
 
 
 
@@ -179,5 +256,5 @@ if __name__ == '__main__':
     # [TODO] clean-up do not need to call these functions in main
     test_filename = '~/Documents/seinfeld/episodes/episode_TheSeinfeldChronicles_copy'
     pairs = createLinePairs(os.path.expanduser(test_filename))
-    pdb.set_trace()
+    # [TODO] transfer this into 
     # for pair in pairs: input, output = line2TrainVector(pair, word_dict)
